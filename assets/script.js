@@ -27,70 +27,91 @@ const productsInShop = [
 const check = {
   productsInCheck: [],
 
-  getProdByEAN13(EAN13, obj){
-    return obj.find(product => product.EAN13 === EAN13);
+  _getProductByEAN13(EAN13, data = this.productsInCheck) {
+    return data.find((product) => product.EAN13 === EAN13);
   },
 
   addProd(EAN13, count = 1){
     
-    const productToCheck = this.getProdByEAN13(EAN13, productsInShop);
-    const repeatProd = this.getProdByEAN13(EAN13, this.productsInCheck);
+    const recurringProduct = this._getProductByEAN13(EAN13);
 
-    if(repeatProd){
-      repeatProd.count += count;
+    if (recurringProduct) {
+      recurringProduct.count += count;
+      return;
+    }
+
+    const productToCheck = this._getProductByEAN13(EAN13, productsInShop);
+
+    if (productToCheck) {
+      this.productsInCheck.push({
+        ...productToCheck,
+        count,
+      });
     } else {
-      if(productToCheck){
-        productToCheck.count = count;
-        this.productsInCheck.push(productToCheck);
-        
-      } else {
-
-        throw new Error(`Product not found`);
-      }
+      throw new Error(`Product not found`);
     }
   },
 
-   removeProd(EAN13, count) {
-     const productInCheck = this.getProdByEAN13(EAN13, this.productsInCheck);
-     const productIndex = this.productsInCheck.findIndex(product => product.EAN13 === EAN13);
-    
+   removeProd(EAN13) {
+    const productIndex = this.productsInCheck.findIndex(
+      (product) => product.EAN13 === EAN13
+    );
+    this.productsInCheck.splice(productIndex, 1);
+  },
 
-     if (productInCheck && productInCheck.count > count) {
-       productInCheck.count -= count;
-     } else if (productInCheck.count === 1|| productInCheck.count === count) {
-      
-      this.productsInCheck.splice(productIndex, 1);
-     } else {
-       throw new Error(`You can't delete more than you have`);
-     }
+  // Лучше все же отдельным методом
+  decrementProduct(EAN13, count = 1) {
+    const productInCheck = this._getProductByEAN13(EAN13);
+
+    if (productInCheck && productInCheck.count > count) {
+      productInCheck.count -= count;
+    } else if (productInCheck.count === count) {
+      this.removeProduct(EAN13);
+    } else if (count > productInCheck.count) {
+      throw new Error(`You can't delete more than you have`);
+    }
+  },
+
+    get totalPrice() { 
+      return this.productsInCheck.reduce((totalPrice, {priсe, count}) => totalPrice += (priсe * count), 0);
     },
 
-  showProd(discount) {
-    this.productsInCheck.forEach((product) => {
-      for (let value in product) {
-        console.log(`${value} : ${product[value]}`);
-
+    showProd(discount) {
+      this.productsInCheck.forEach((product) => {
+        for (let value in product) {
+          console.log(`${value} : ${product[value]}`);
+        }
+        console.log(`\n`);
+      });
+  
+      if (discount) {
+        try {
+         const totalPriceWithDiscount = this._applyDiscount(discount);
+           console.log(`Общая сумма чека сo скидкой: ${totalPriceWithDiscount}`);
+           return;
+         } catch(e) {
+          console.log(e);
+         }
+        }
+        
+        console.log(`Общая сумма чека: ${this.totalPrice}`);
+    },
+  
+    // Лучше все жеотдельным методом
+    _applyDiscount(discount) {
+      let coefficient = 1
+  
+      switch (discount) {
+        case 'PROMO20':
+          coefficient = .8;
+          break;
+        default:
+          throw new Error(`Incorrect discount`);
       }
+      return this.totalPrice * coefficient;
+    },
+  }
 
-      console.log(`\n`);
-    });
-    if (discount === 'PROMO20'){
-      console.log(`Общая сумма чека: ${this.totalPrice}\nСумма сo скидкой: ${this.totalPrice * 0.8}`);
-    } else {
-      console.log(`Общая сумма чека: ${this.totalPrice}`);
-    }
-  },
-
-  get totalPrice() { 
-    return this.productsInCheck.reduce((totalPrice, {priсe, count}) => totalPrice += (priсe * count), 0);
-  },
-
-
-}
-
-const discount = () => {
-  return prompt(`Enter promo code`);
-};
 
 check.addProd(1111, 2);
 check.addProd(1111, 10);
